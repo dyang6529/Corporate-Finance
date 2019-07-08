@@ -1,0 +1,36 @@
+load result.mat
+load kgrid.mat
+load zgrid.mat
+Policy=squeeze(gather(Policy));
+V=squeeze(gather(V));
+z_grid=squeeze(gather(z_grid));
+k_grid=squeeze(gather(k_grid));
+theta = 0.7;
+rho = 0.95;
+deltak = 0.10;
+sigmasq_epsilon=0.09;
+r=1/0.96-1;
+mu=0;
+K=[];
+K(1)=1;
+Z=[];
+Z(1)=z_grid(1);
+T=10000;
+%% simulation
+for t=1:T
+    [ZminVal,Zclosestindex]=min(abs(z_grid-Z(t)));
+    [KminVal,Kclosestindex]=min(abs(k_grid-K(t)));
+    K(t+1)=Policy(Kclosestindex,Zclosestindex);
+    Value(t+1)=V(Kclosestindex,Zclosestindex);
+    Z(t+1)=(1-rho)*mu+rho*Z(t)+normrnd(0,sqrt(sigmasq_epsilon));
+end
+
+%% Generate moment K/CF and K/E
+%burn half
+K=K(round(end/2):end);
+Z=Z(round(end/2):end);
+KCF=K./(exp(Z).*K.^theta);
+KCF=mean(KCF);
+KE=K(1:end-1)./(exp(Z(1:end-1)).*K(1:end-1).^theta-K(2:end)+(1-deltak).*K(1:end-1));
+KE=mean(KE);
+
