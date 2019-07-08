@@ -1,0 +1,67 @@
+% Neoclassical Stochastic Growth Model
+% Example based on Diaz-Gimenez (2001) - Linear Quadratic Approximations: An Introduction 
+% (Chapter 2 in 'Computational Methods for the Study of Dynamic Economies', edited by Marimon & Scott)
+
+% This model is also used by Aldrich, Fernandez-Villaverde, Gallant, & Rubio-Ramirez (2011) - "Tapping the supercomputer under your desk: Solving dynamic equilibrium models with graphics processors,"
+% But they do use slightly different parameters to those used here.
+
+%% Set up
+tauchenoptions.parallel=2; % Use GPU (is anyway the default option)
+vfoptions.parallel=2; % Use GPU (is anyway the default option)
+
+% The sizes of the grids
+n_z=2^2;
+n_k=2^12;
+
+%Discounting rate
+beta = 0.96; %1/(1+r)=0.96
+
+%Give the parameter values (Params will be a 'structure' containing all the parameter values)
+Params.theta = 0.7;
+Params.rho = 0.95;
+Params.deltak = 0.10;
+Params.sigmasq_epsilon=0.09;
+Params.r=1/0.96-1;
+Params.mu=0;
+
+% Params has been created as a structure. You can create the individual
+% parameters from the structure by running the following command
+CreateIndividualParams(Params)
+
+%% Compute the steady state
+K_ss=((r+deltak)/theta)^(1/(theta-1));
+X_ss= deltak*K_ss; %investment steady state
+
+%% Create grids (grids are defined as a column vectors)
+
+q=3; % A parameter needed for the Tauchen Method, larger=wider the interval
+[z_grid, pi_z]=TauchenMethod(0,sigmasq_epsilon,rho,n_z,q,tauchenoptions); %[states, transmatrix]=TauchenMethod_Param(mew,sigmasq,rho,znum,q), transmatix is (z,zprime)
+
+k_grid=linspace(0,20*K_ss,n_k)'; % Grids should always be declared as column vectors
+
+%% Now, create the return function
+DiscountFactorParamNames={'beta'};
+    
+ReturnFn=@(kprime_val, k_val, z_val,theta, deltak) KZ_ReturnFn(kprime_val,k_val,z_val, theta, deltak);
+ReturnFnParamNames={'theta','deltak'}; %It is important that these are in same order as they appear in 'StochasticNeoClassicalGrowthModel_ReturnFn'
+
+%% Solve
+%Do the value function iteration. Returns both the value function itself,
+%and the optimal policy function.
+d_grid=0; %no d variable: contemporal variable. 
+n_d=0; %no d variable
+
+tic;
+V0=ones(n_k,n_z); %matrix 
+[V, Policy]=ValueFnIter_Case1(V0, n_d,n_k,n_z,d_grid,k_grid,z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+time=toc;
+
+fprintf('Time to solve the value function iteration was %8.2f seconds. \n', time)
+
+save result V Policy
+%% Draw a graph of the value function
+
+%surf(V)
+
+% Or to get 'nicer' x and y axes use
+% surf(k_grid*ones(1,n_z),ones(n_k,1)*z_grid',V)
