@@ -1,0 +1,7 @@
+function F=KZ_ReturnFn(kprime_val,k_val,z_val, theta, deltak)
+
+F=-Inf;
+F=exp(z_val)*k_val^theta-(kprime_val-(1-deltak)*k_val);
+
+
+end
